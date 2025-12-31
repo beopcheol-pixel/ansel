@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- 펜/연필 아이콘 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,30 L64,40 L44,78 L34,78 L34,68 Z"/>
+
+    <!-- 펜 끝 -->
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M34,78 L44,78 L39,88 Z"/>
+
+    <!-- 별 (게임 요소) -->
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M70,35 L72,41 L78,41 L73,45 L75,51 L70,47 L65,51 L67,45 L62,41 L68,41 Z"/>
+
+    <!-- EXP 바 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:fillAlpha="0.3"
+        android:pathData="M30,85 L78,85 L78,90 L30,90 Z"/>
+    <path
+        android:fillColor="#FFD700"
+        android:pathData="M30,85 L60,85 L60,90 L30,90 Z"/>
+</vector>
