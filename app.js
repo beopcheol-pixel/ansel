@@ -20,6 +20,19 @@ const state = {
     achievements: {     // 업적 데이터
         unlocked: []    // 해금된 업적 ID 목록
     },
+    pet: {              // 펫 데이터
+        name: '냥이',
+        species: 'cat',
+        level: 1,
+        xp: 0,
+        hunger: 50,     // 0=배부름, 100=배고픔
+        lastFeedTime: null
+    },
+    collection: {       // 수집 데이터
+        ownedSkins: ['cat'],  // 기본 스킨
+        equippedSkin: 'cat',
+        badges: []
+    },
     ui: {
         selectedMood: null,
         editingLogId: null,
@@ -60,6 +73,26 @@ const ACHIEVEMENTS = [
     { id: 'quest_7', name: '퀘스트 헌터', desc: '퀘스트 7회 완료', icon: '🎯', rewardType: 'coin', reward: 100, target: 7 }
 ];
 
+// ===== 펫 스킨 목록 =====
+const SKINS = [
+    { id: 'cat', name: '고양이', emoji: '🐱', price: 0 },
+    { id: 'dog', name: '강아지', emoji: '🐶', price: 100 },
+    { id: 'rabbit', name: '토끼', emoji: '🐰', price: 150 },
+    { id: 'fox', name: '여우', emoji: '🦊', price: 200 },
+    { id: 'panda', name: '판다', emoji: '🐼', price: 250 },
+    { id: 'unicorn', name: '유니콘', emoji: '🦄', price: 500 }
+];
+
+// ===== 배지 목록 =====
+const BADGES = [
+    { id: 'newbie', name: '뉴비', icon: '🌟', condition: 'level_3', desc: '레벨 3 달성' },
+    { id: 'writer', name: '작가', icon: '✍️', condition: 'logs_20', desc: '기록 20개 작성' },
+    { id: 'dedicated', name: '성실왕', icon: '👑', condition: 'streak_10', desc: '10일 연속 기록' },
+    { id: 'pet_lover', name: '펫 러버', icon: '💕', condition: 'pet_level_5', desc: '펫 레벨 5 달성' },
+    { id: 'collector', name: '수집가', icon: '🎪', condition: 'skins_3', desc: '스킨 3개 보유' },
+    { id: 'rich', name: '부자', icon: '💰', condition: 'coins_500', desc: '코인 500개 보유' }
+];
+
 // ===== DOM 요소 캐싱 =====
 const dom = {
     level: document.getElementById('level'),
@@ -94,7 +127,22 @@ const dom = {
     achievementList: document.getElementById('achievement-list'),
     achievementClose: document.getElementById('achievement-close'),
     achievementToast: document.getElementById('achievement-toast'),
-    achievementToastName: document.getElementById('achievement-toast-name')
+    achievementToastName: document.getElementById('achievement-toast-name'),
+    // 펫 관련
+    petCard: document.getElementById('pet-card'),
+    petAvatar: document.getElementById('pet-avatar'),
+    petName: document.getElementById('pet-name'),
+    petLevel: document.getElementById('pet-level'),
+    petXpBar: document.getElementById('pet-xp-bar'),
+    petXpText: document.getElementById('pet-xp-text'),
+    hungerBar: document.getElementById('hunger-bar'),
+    petMood: document.getElementById('pet-mood'),
+    // 수집 관련
+    collectionBtn: document.getElementById('collection-btn'),
+    collectionModal: document.getElementById('collection-modal'),
+    collectionClose: document.getElementById('collection-close'),
+    skinGrid: document.getElementById('skin-grid'),
+    badgeGrid: document.getElementById('badge-grid')
 };
 
 // ===== 초기화 =====
@@ -111,11 +159,15 @@ function loadFromStorage() {
     const game = localStorage.getItem('ansel_game');
     const quest = localStorage.getItem('ansel_quest');
     const achievements = localStorage.getItem('ansel_achievements');
+    const pet = localStorage.getItem('ansel_pet');
+    const collection = localStorage.getItem('ansel_collection');
 
     if (logs) state.logs = JSON.parse(logs);
     if (game) state.game = { ...state.game, ...JSON.parse(game) };
     if (quest) state.quest = JSON.parse(quest);
     if (achievements) state.achievements = JSON.parse(achievements);
+    if (pet) state.pet = { ...state.pet, ...JSON.parse(pet) };
+    if (collection) state.collection = { ...state.collection, ...JSON.parse(collection) };
 }
 
 // ===== 로컬 스토리지 저장 =====
@@ -124,6 +176,8 @@ function saveToStorage() {
     localStorage.setItem('ansel_game', JSON.stringify(state.game));
     localStorage.setItem('ansel_quest', JSON.stringify(state.quest));
     localStorage.setItem('ansel_achievements', JSON.stringify(state.achievements));
+    localStorage.setItem('ansel_pet', JSON.stringify(state.pet));
+    localStorage.setItem('ansel_collection', JSON.stringify(state.collection));
 }
 
 // ===== 날짜 유틸리티 =====
@@ -160,6 +214,9 @@ function checkDailyReset() {
     if (state.quest.date !== today) {
         generateDailyQuest();
     }
+
+    // 펫 배고픔 업데이트
+    updatePetHunger();
 
     saveToStorage();
 }
@@ -332,9 +389,13 @@ function addLog(content, mood) {
         state.game.usedMoods.push(mood);
     }
 
+    // 펫에게 밥 주기
+    feedPet();
+
     saveToStorage();
     render();
     checkAchievements();  // 업적 체크
+    checkBadges();        // 배지 체크
 }
 
 // ===== 기록 수정 =====
@@ -368,6 +429,7 @@ function render() {
     renderQuest();
     renderLogs();
     renderAchievementCount();
+    renderPet();
 }
 
 // ===== 게임 스탯 렌더링 =====
@@ -548,6 +610,23 @@ function setupEventListeners() {
             closeAchievementModal();
         }
     });
+
+    // 수집 버튼 클릭
+    dom.collectionBtn.addEventListener('click', openCollectionModal);
+
+    // 수집 모달 닫기
+    dom.collectionClose.addEventListener('click', closeCollectionModal);
+    dom.collectionModal.addEventListener('click', (e) => {
+        if (e.target === dom.collectionModal) {
+            closeCollectionModal();
+        }
+    });
+
+    // 펫 카드 클릭 (바운스 애니메이션)
+    dom.petCard.addEventListener('click', () => {
+        dom.petCard.classList.add('bounce');
+        setTimeout(() => dom.petCard.classList.remove('bounce'), 500);
+    });
 }
 
 // ===== 업적 체크 (기록 추가, 퀘스트 완료, 레벨업 시 호출) =====
@@ -695,4 +774,223 @@ function renderAchievementList() {
             </li>
         `;
     }).join('');
+}
+
+// ===== 펫 배고픔 업데이트 =====
+function updatePetHunger() {
+    if (!state.pet.lastFeedTime) return;
+
+    const now = Date.now();
+    const hoursSinceLastFeed = (now - state.pet.lastFeedTime) / (1000 * 60 * 60);
+
+    // 6시간마다 배고픔 +10
+    const hungerIncrease = Math.floor(hoursSinceLastFeed / 6) * 10;
+
+    if (hungerIncrease > 0) {
+        state.pet.hunger = Math.min(100, state.pet.hunger + hungerIncrease);
+        // 마지막 피딩 시간을 현재 시점으로 리셋 (이미 계산된 배고픔 반영)
+        state.pet.lastFeedTime = now - ((hoursSinceLastFeed % 6) * 60 * 60 * 1000);
+    }
+}
+
+// ===== 펫에게 밥 주기 =====
+function feedPet() {
+    // 배고픔 감소
+    state.pet.hunger = Math.max(0, state.pet.hunger - 15);
+    state.pet.lastFeedTime = Date.now();
+
+    // 펫 경험치 추가
+    addPetXp(10);
+}
+
+// ===== 펫 경험치 추가 =====
+function addPetXp(amount) {
+    state.pet.xp += amount;
+
+    // 펫 레벨업 체크 (50 XP마다 레벨업)
+    while (state.pet.xp >= 50) {
+        state.pet.xp -= 50;
+        state.pet.level++;
+    }
+}
+
+// ===== 펫 기분 계산 =====
+function getPetMood() {
+    const hunger = state.pet.hunger;
+
+    if (hunger <= 30) {
+        return { emoji: '😊', text: '행복해요!' };
+    } else if (hunger <= 60) {
+        return { emoji: '😐', text: '괜찮아요' };
+    } else if (hunger <= 80) {
+        return { emoji: '😟', text: '배고파요...' };
+    } else {
+        return { emoji: '😢', text: '많이 배고파요!' };
+    }
+}
+
+// ===== 현재 장착된 스킨 이모지 가져오기 =====
+function getEquippedSkinEmoji() {
+    const skin = SKINS.find(s => s.id === state.collection.equippedSkin);
+    return skin ? skin.emoji : '🐱';
+}
+
+// ===== 펫 렌더링 =====
+function renderPet() {
+    // 아바타 (장착된 스킨)
+    dom.petAvatar.textContent = getEquippedSkinEmoji();
+
+    // 이름과 레벨
+    dom.petName.textContent = state.pet.name;
+    dom.petLevel.textContent = state.pet.level;
+
+    // XP 바
+    const xpPercent = (state.pet.xp / 50) * 100;
+    dom.petXpBar.style.width = `${xpPercent}%`;
+    dom.petXpText.textContent = `${state.pet.xp} / 50 XP`;
+
+    // 배고픔 바
+    const hungerPercent = 100 - state.pet.hunger; // 반전 (배부름 표시)
+    dom.hungerBar.style.width = `${hungerPercent}%`;
+
+    // 배고픔에 따른 색상 변경
+    if (state.pet.hunger > 80) {
+        dom.hungerBar.classList.add('danger');
+        dom.hungerBar.classList.remove('warning');
+    } else if (state.pet.hunger > 60) {
+        dom.hungerBar.classList.add('warning');
+        dom.hungerBar.classList.remove('danger');
+    } else {
+        dom.hungerBar.classList.remove('warning', 'danger');
+    }
+
+    // 기분
+    const mood = getPetMood();
+    dom.petMood.textContent = `${mood.emoji} ${mood.text}`;
+}
+
+// ===== 수집 모달 열기 =====
+function openCollectionModal() {
+    renderCollection();
+    dom.collectionModal.classList.add('show');
+}
+
+// ===== 수집 모달 닫기 =====
+function closeCollectionModal() {
+    dom.collectionModal.classList.remove('show');
+}
+
+// ===== 수집 렌더링 =====
+function renderCollection() {
+    renderSkinGrid();
+    renderBadgeGrid();
+}
+
+// ===== 스킨 그리드 렌더링 =====
+function renderSkinGrid() {
+    dom.skinGrid.innerHTML = SKINS.map(skin => {
+        const owned = state.collection.ownedSkins.includes(skin.id);
+        const equipped = state.collection.equippedSkin === skin.id;
+
+        return `
+            <div class="skin-item ${owned ? 'owned' : 'locked'} ${equipped ? 'equipped' : ''}"
+                 data-skin-id="${skin.id}">
+                <span class="skin-emoji">${owned ? skin.emoji : '🔒'}</span>
+                <span class="skin-name">${skin.name}</span>
+                ${!owned ? `<span class="skin-price">🪙 ${skin.price}</span>` : ''}
+                ${owned && !equipped ? '<button class="equip-btn" onclick="equipSkin(\'' + skin.id + '\')">장착</button>' : ''}
+                ${equipped ? '<span class="equipped-label">장착중</span>' : ''}
+            </div>
+        `;
+    }).join('');
+
+    // 미소유 스킨 클릭 시 구매
+    dom.skinGrid.querySelectorAll('.skin-item.locked').forEach(item => {
+        item.addEventListener('click', () => {
+            const skinId = item.dataset.skinId;
+            buySkin(skinId);
+        });
+    });
+}
+
+// ===== 스킨 구매 =====
+function buySkin(skinId) {
+    const skin = SKINS.find(s => s.id === skinId);
+    if (!skin) return;
+
+    if (state.collection.ownedSkins.includes(skinId)) {
+        return; // 이미 소유
+    }
+
+    if (state.game.coins < skin.price) {
+        alert('코인이 부족합니다!');
+        return;
+    }
+
+    // 구매 진행
+    state.game.coins -= skin.price;
+    state.collection.ownedSkins.push(skinId);
+
+    saveToStorage();
+    render();
+    renderCollection();
+    checkBadges();
+}
+
+// ===== 스킨 장착 =====
+function equipSkin(skinId) {
+    if (!state.collection.ownedSkins.includes(skinId)) return;
+
+    state.collection.equippedSkin = skinId;
+    saveToStorage();
+    render();
+    renderCollection();
+}
+
+// ===== 배지 그리드 렌더링 =====
+function renderBadgeGrid() {
+    dom.badgeGrid.innerHTML = BADGES.map(badge => {
+        const owned = state.collection.badges.includes(badge.id);
+
+        return `
+            <div class="badge-item ${owned ? 'owned' : 'locked'}">
+                <span class="badge-icon">${owned ? badge.icon : '🔒'}</span>
+                <span class="badge-name">${badge.name}</span>
+                <span class="badge-desc">${badge.desc}</span>
+            </div>
+        `;
+    }).join('');
+}
+
+// ===== 배지 조건 체크 =====
+function checkBadgeCondition(badge) {
+    switch (badge.condition) {
+        case 'level_3':
+            return state.game.level >= 3;
+        case 'logs_20':
+            return state.logs.length >= 20;
+        case 'streak_10':
+            return state.game.streak >= 10;
+        case 'pet_level_5':
+            return state.pet.level >= 5;
+        case 'skins_3':
+            return state.collection.ownedSkins.length >= 3;
+        case 'coins_500':
+            return state.game.coins >= 500;
+        default:
+            return false;
+    }
+}
+
+// ===== 배지 체크 및 부여 =====
+function checkBadges() {
+    BADGES.forEach(badge => {
+        if (state.collection.badges.includes(badge.id)) return;
+
+        if (checkBadgeCondition(badge)) {
+            state.collection.badges.push(badge.id);
+            showAchievementToast(`배지 획득: ${badge.name}`);
+            saveToStorage();
+        }
+    });
 }

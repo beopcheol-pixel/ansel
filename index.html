@@ -29,8 +29,35 @@
                 <button class="achievement-btn" id="achievement-btn">
                     🏆 <span id="achievement-count">0</span>
                 </button>
+                <button class="collection-btn" id="collection-btn">
+                    🎨
+                </button>
             </div>
         </header>
+
+        <!-- 펫 카드 -->
+        <section class="pet-card" id="pet-card">
+            <div class="pet-avatar" id="pet-avatar">🐱</div>
+            <div class="pet-info">
+                <div class="pet-header">
+                    <span class="pet-name" id="pet-name">냥이</span>
+                    <span class="pet-level">Lv.<span id="pet-level">1</span></span>
+                </div>
+                <div class="pet-xp-bar">
+                    <div class="pet-xp-fill" id="pet-xp-bar"></div>
+                    <span class="pet-xp-text" id="pet-xp-text">0 / 50 XP</span>
+                </div>
+                <div class="pet-stats">
+                    <div class="pet-hunger">
+                        <span>🍖</span>
+                        <div class="hunger-bar">
+                            <div class="hunger-fill" id="hunger-bar"></div>
+                        </div>
+                    </div>
+                    <span class="pet-mood" id="pet-mood">😊 행복해요!</span>
+                </div>
+            </div>
+        </section>
 
         <!-- 오늘의 퀘스트 -->
         <section class="quest-card" id="quest-card">
@@ -104,6 +131,27 @@
             </div>
             <ul id="achievement-list" class="achievement-list"></ul>
             <button id="achievement-close" class="btn-close">닫기</button>
+        </div>
+    </div>
+
+    <!-- 수집 모달 -->
+    <div id="collection-modal" class="modal">
+        <div class="modal-content collection-modal-content">
+            <h3>🎨 수집</h3>
+
+            <!-- 스킨 섹션 -->
+            <div class="collection-section">
+                <h4>펫 스킨</h4>
+                <div class="skin-grid" id="skin-grid"></div>
+            </div>
+
+            <!-- 배지 섹션 -->
+            <div class="collection-section">
+                <h4>배지</h4>
+                <div class="badge-grid" id="badge-grid"></div>
+            </div>
+
+            <button id="collection-close" class="btn-close">닫기</button>
         </div>
     </div>
 
